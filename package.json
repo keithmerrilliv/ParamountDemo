@@ -1,0 +1,24 @@
+{
+  "name": "paramount-demo",
+  "version": "1.0.0",
+  "description": "Paramount Demo — C9 Capability Tiering + Widevine Playback (webOS)",
+  "private": true,
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.client.json && tsc --noEmit",
+    "build": "npm run typecheck && esbuild client/main.ts --bundle --format=iife --target=chrome53 --outfile=dist/webos/app.js",
+    "build:server": "esbuild server/server.ts --bundle --platform=node --target=node18 --outfile=dist/server/server.js",
+    "serve": "npm run build:server && node dist/server/server.js",
+    "package": "npm run build && node scripts/package-webos.mjs",
+    "icons": "node scripts/generate-icons.mjs"
+  },
+  "dependencies": {
+    "shaka-player": "4.9.0",
+    "core-js": "3.49.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.0",
+    "typescript": "5.9.3",
+    "@types/node": "20.19.41",
+    "@webosose/ares-cli": "2.4.0"
+  }
+}

@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Editor / OS
+.DS_Store
+.vscode/
+.idea/
+*.swp
+
+# Local Claude settings (user-specific, not shared)
+.claude/settings.local.json
+
+# webOS package artifacts (icons under webos/ are committed; the .ipk is built)
+*.ipk

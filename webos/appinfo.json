@@ -1,0 +1,10 @@
+{
+  "id": "com.paramount.demo",
+  "version": "1.0.0",
+  "vendor": "Paramount",
+  "type": "web",
+  "main": "index.html",
+  "title": "Paramount Demo",
+  "icon": "./icon.png",
+  "largeIcon": "./largeIcon.png"
+}

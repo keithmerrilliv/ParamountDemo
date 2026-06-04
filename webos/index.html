@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paramount Demo</title>
+  
+  <!-- Shaka Player bundled locally -->
+  <script src="./shaka-player.compiled.js"></script>
+  
+  <!-- Inject shell configuration with resolver URL -->
+  <script>
+    window.__SHELL__ = {
+      version: '1.0.0',
+      platform: { kind: 'webos', webosVersion: '4.5' },
+      // IMPORTANT: Change this to your dev machine's IP when running against real C9
+      resolverBaseUrl: 'http://192.168.50.101:8088'
+    };
+    
+    console.log('[Shell] Configured with resolver:', window.__SHELL__.resolverBaseUrl);
+  </script>
+  
+  <!-- Load the built app bundle -->
+  <script src="./app.js" defer></script>
+  
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      background-color: #000;
+      overflow: hidden;
+    }
+    video {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+  </style>
+</head>
+<body>
+  <!-- App container will be created by main.ts after polyfills load -->
+  <div id="app-container"></div>
+</body>
+</html>
