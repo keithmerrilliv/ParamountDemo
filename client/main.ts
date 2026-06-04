@@ -15,8 +15,8 @@ async function main(): Promise<void> {
   const platform = shellConfig.platform || { kind: 'browser' as const, userAgent: navigator.userAgent };
 
   // Perform capability handshake with fallback to baseline on error
-  const { verdict } = await import('./handshakeClient.js').then(m => 
-    m.performHandshake(platform, shellConfig.resolverBaseUrl)
+  const { verdict } = await import('./handshakeClient.js').then(m =>
+    m.performHandshake(platform, shellConfig.resolverBaseUrl, shellConfig.entitlements)
   );
 
   // Initialize UI and render tier banner + feature list

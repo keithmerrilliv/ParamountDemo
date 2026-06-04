@@ -38,7 +38,8 @@ function makeBaselineVerdict(): Verdict {
 
 export async function performHandshake(
   platform: Platform,
-  resolverBaseUrl?: string
+  resolverBaseUrl?: string,
+  entitlements?: string[]
 ): Promise<{ verdict: Verdict; probePlan?: ProbePlan }> {
   // If no resolver base URL provided, use baseline immediately
   if (!resolverBaseUrl || !String(resolverBaseUrl).trim()) {
@@ -59,9 +60,11 @@ export async function performHandshake(
     // Run probes according to plan
     const profile = await runProbePlan(platform);
 
-    // Round 2 — resolve to verdict
+    // Round 2 — resolve to verdict. Session entitlements travel in the context,
+    // separate from the measured device profile.
     const resolveRequest = {
-      profile
+      profile,
+      context: { entitlements: entitlements ?? [] }
     };
 
     const verdict = await transport.post('/resolve', resolveRequest) as Verdict;

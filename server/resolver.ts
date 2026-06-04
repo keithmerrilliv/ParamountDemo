@@ -59,8 +59,17 @@ const TIER_BANDS: TierBand[] = [
   { tier: 'baseline', requiredFeatures: [] }
 ];
 
+/**
+ * Session/account context, kept separate from the device CapabilityProfile so
+ * capability logic and policy logic can't bleed into each other. Entitlements
+ * are held by the session (content licensing) — never derived from the platform.
+ */
+export interface ResolveContext {
+  entitlements?: string[];
+}
+
 // Three-phase resolve
-export function resolve(profile: CapabilityProfile): Verdict {
+export function resolve(profile: CapabilityProfile, context: ResolveContext = {}): Verdict {
   const features: Record<string, FeatureGrant> = {};
 
   for (const spec of Object.values(FEATURE_SPECS)) {
@@ -91,23 +100,29 @@ export function resolve(profile: CapabilityProfile): Verdict {
       }
     }
 
-    // Phase 3 — policy overrides (entitlement, firmware deny, rollout)
+    // Phase 3 — policy overrides (entitlement, rollout)
     let granted = true;
+    let policyDenial = '';
 
-    if (granted && spec.policy?.requiresEntitlement && !hasEntitlement(profile.platform.kind)) {
-      granted = false;
+    if (granted && spec.policy?.requiresEntitlement) {
+      const held = context.entitlements ?? [];
+      if (!held.includes(spec.policy.requiresEntitlement)) {
+        granted = false;
+        policyDenial = 'policy.entitlement';
+      }
     }
 
     if (granted && spec.policy?.rolloutPercent !== undefined) {
       const notInRollout = deterministicRollout(profile.platform, spec.id, spec.policy.rolloutPercent);
       if (notInRollout) {
         granted = false;
+        policyDenial = 'policy.rollout';
       }
     }
 
     features[spec.id] = granted
       ? { enabled: true, params: selectedRung?.params, rungId: selectedRung?.id }
-      : { enabled: false, deniedBy: { predicateId: 'policy.override' }, rungId: selectedRung?.id };
+      : { enabled: false, deniedBy: { predicateId: policyDenial }, rungId: selectedRung?.id };
   }
 
   const tier = deriveTier(features);
@@ -121,9 +136,22 @@ export function resolve(profile: CapabilityProfile): Verdict {
   };
 }
 
-function hasEntitlement(platformKind: string): boolean {
-  // Placeholder — real implementation would check entitlement token or device registration
-  return platformKind === 'webos' || platformKind === 'android';
+/**
+ * Never-brick fallback: a conservative Baseline verdict the service returns when
+ * resolution can't run at all (malformed or garbage profile). Short TTL so the
+ * shell retries soon, but it always boots with a usable verdict instead of an error.
+ */
+export function makeFallbackVerdict(): Verdict {
+  return {
+    tier: 'baseline',
+    features: {
+      'multi-angle': { enabled: false, deniedBy: { predicateId: 'resolver.fallback' } },
+      'hdr-overlay': { enabled: false, deniedBy: { predicateId: 'resolver.fallback' } }
+    },
+    bundles: ['main'],
+    ttlSeconds: 60,
+    fallback: true
+  };
 }
 
 // Deterministic FNV-1a rollout hash on platform + feature ID

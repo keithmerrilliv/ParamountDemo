@@ -3,7 +3,7 @@
 
 import http from 'http';
 import type { Platform, CapabilityProfile } from '../shared/handshake';
-import { resolve } from './resolver';
+import { resolve, makeFallbackVerdict, type ResolveContext } from './resolver';
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 8088;
 const HOST = '0.0.0.0';
@@ -15,6 +15,7 @@ interface ProbePlanRequest {
 
 interface ResolveRequest {
   profile: unknown; // CapabilityProfile
+  context?: ResolveContext;
 }
 
 function handleProbePlan(req: http.IncomingMessage, res: http.ServerResponse): void {
@@ -42,13 +43,22 @@ function handleResolve(req: http.IncomingMessage, res: http.ServerResponse): voi
   let body = '';
   req.on('data', chunk => { body += chunk.toString(); });
   req.on('end', () => {
+    let payload: ResolveRequest;
     try {
-      const payload: ResolveRequest = JSON.parse(body);
-      const verdict = resolve(payload.profile as CapabilityProfile);
+      payload = JSON.parse(body);
+    } catch {
+      sendError(res, 400, 'Invalid request body');
+      return;
+    }
+    // Never-brick: a malformed or garbage profile degrades to a safe Baseline
+    // verdict (HTTP 200) so the shell always receives something it can boot on,
+    // rather than a 5xx that would leave the TV with no verdict at all.
+    try {
+      const verdict = resolve(payload.profile as CapabilityProfile, payload.context);
       sendJson(res, 200, verdict);
     } catch (e) {
-      console.error('Resolver error:', e);
-      sendError(res, 500, 'Resolver error');
+      console.error('Resolver error, falling back to baseline:', e);
+      sendJson(res, 200, makeFallbackVerdict());
     }
   });
 }

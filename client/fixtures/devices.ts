@@ -53,7 +53,10 @@ export const lgC9: CapabilityProfile = {
   }
 };
 
-// Flagship device — modern browser with all features enabled
+// Flagship-capable device — a modern browser that clears every capability gate.
+// It reaches tier "flagship" only when the session also holds the 'live-premium'
+// entitlement (supplied via ResolveContext); without it, multi-angle is denied by
+// policy and the device resolves to "standard". Capability is not entitlement.
 export const flagshipDevice: CapabilityProfile = {
   platform: { kind: 'browser' as const, userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36' },
   codecs: [

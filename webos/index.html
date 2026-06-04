@@ -14,7 +14,10 @@
       version: '1.0.0',
       platform: { kind: 'webos', webosVersion: '4.5' },
       // IMPORTANT: Change this to your dev machine's IP when running against real C9
-      resolverBaseUrl: 'http://192.168.50.101:8088'
+      resolverBaseUrl: 'http://192.168.50.101:8088',
+      // Session entitlements (content licensing). 'live-premium' unlocks
+      // multi-angle on capable devices; the C9 is still gated by runtime.es2020.
+      entitlements: ['live-premium']
     };
     
     console.log('[Shell] Configured with resolver:', window.__SHELL__.resolverBaseUrl);

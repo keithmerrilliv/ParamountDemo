@@ -62,7 +62,10 @@ Update `webos/index.html` with your resolver address:
 window.__SHELL__ = {
   version: "1.0.0",
   platform: { kind: "webos", webosVersion: "4.5" },
-  resolverBaseUrl: "http://192.168.50.101:8088"
+  resolverBaseUrl: "http://192.168.50.101:8088",
+  // Session entitlements forwarded to the resolver. 'live-premium' unlocks
+  // multi-angle on capable devices (the C9 stays gated by runtime.es2020).
+  entitlements: ["live-premium"]
 };
 </script>
 ```

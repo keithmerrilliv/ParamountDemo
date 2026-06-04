@@ -8,6 +8,8 @@ export interface ShellConfig {
   version?: string;
   platform?: Platform;
   resolverBaseUrl?: string;
+  /** Session entitlements (e.g. 'live-premium'), forwarded to the resolver. */
+  entitlements?: string[];
 }
 
 declare global {
