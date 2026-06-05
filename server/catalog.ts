@@ -1,8 +1,17 @@
-// Inline policy data: FEATURE_SPECS and TIER_BANDS.
-// Shared by server resolver logic.
+// Policy data — the single source of truth for the feature catalog and tier
+// bands. server/resolver.ts imports FEATURE_SPECS and TIER_BANDS from here;
+// they are intentionally declared in exactly one place so the two copies can
+// never drift. The predicate/spec vocabulary lives in ../shared/policy.
 
-import type { FeatureSpec, TierBand } from './resolver';
-import type { Predicate, RobustnessLevel } from '../shared/handshake';
+import {
+  makeCodecPredicate,
+  makeWebGlPredicate,
+  makeDrmPredicate,
+  makeHdrPredicate,
+  makeRuntimePredicate,
+  type FeatureSpec,
+  type TierBand
+} from '../shared/policy';
 
 export const FEATURE_SPECS: Record<string, FeatureSpec> = {
   'multi-angle': {
@@ -36,24 +45,3 @@ export const TIER_BANDS: TierBand[] = [
   { tier: 'standard', requiredFeatures: ['hdr-overlay'] },
   { tier: 'baseline', requiredFeatures: [] }
 ];
-
-// Predicate helpers (inline to avoid circular deps with shared/policy.ts)
-function makeCodecPredicate(id: string, mimeType: string, requiredSmooth?: boolean): Predicate {
-  return { kind: 'codec', id, mimeType, requiredSmooth };
-}
-
-function makeWebGlPredicate(id: string, minVersion: 1 | 2): Predicate {
-  return { kind: 'webgl', id, minVersion };
-}
-
-function makeDrmPredicate(id: string, system: string, minRobustness?: RobustnessLevel): Predicate {
-  return { kind: 'drm', id, system, minRobustness };
-}
-
-function makeHdrPredicate(id: string, transferFunctions: ('hlg' | 'pq')[]): Predicate {
-  return { kind: 'hdr', id, transferFunctions };
-}
-
-function makeRuntimePredicate(id: string, check: string): Predicate {
-  return { kind: 'runtime', id, check };
-}

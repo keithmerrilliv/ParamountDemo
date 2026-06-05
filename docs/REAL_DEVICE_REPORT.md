@@ -1,8 +1,8 @@
 # ParamountDemo — Real-Device Validation Report
 
 **Date:** 2026-06-04
-**Device:** LG OLED65C9AUA — webOS 5.50.00, Chromium 53 (`Chrome/53.0.2785.34`, WebAppManager), 3840×2160 OLED
-**Resolver host:** dev machine at `192.168.50.101:8088`; TV at `192.168.50.223`
+**Device:** LG OLED65C9 — webOS 5.x, Chromium 53 (`Chrome/53` WebAppManager), 3840×2160 OLED
+**Resolver host:** dev machine (`<dev-host>:8088`); TV on the same LAN (`<tv-ip>`)
 **Tooling:** `@webosose/ares-cli` 2.4.0, a transparent logging proxy for the wire protocol, and Chrome DevTools Protocol (CDP) inspection over an SSH tunnel.
 
 ---
@@ -32,7 +32,7 @@ The capability-tiering and handshake logic was sound throughout; **every bug was
 The first real handshake (verbatim from the proxy log) measured a profile very different from the fixture, and the verdict followed:
 
 ```
-POST /resolve  (from 192.168.50.223)
+POST /resolve  (from the TV)
   profile.runtime.es2020 = true          ← on a Chromium-53 engine (should be false)
   profile.codecs          = (absent)      ← codec probe returned nothing
   profile.display         = (absent)      ← HDR probe returned nothing
@@ -71,7 +71,7 @@ All fixes keep the source **zero-`any`** and the bundle **Chromium-53-safe** (no
 Captured `/resolve` exchange:
 
 ```
-POST /resolve  (from 192.168.50.223)
+POST /resolve  (from the TV)
   profile.runtime.es2020 = false
   profile.display.hdr    = ["pq","hlg"]
   profile.graphics       = { webglVersion: 1, maxTextureSize: 8192, … }
@@ -103,8 +103,8 @@ This is the project's central claim, **demonstrated on real hardware**: the C9 i
 
 ## Real-world sideloading notes (gotchas worth keeping)
 
-- **Dev key:** pulled the per-device key from the TV's key server (`http://192.168.50.223:9991/webos_rsa`, encrypted; the Developer-Mode passphrase decrypts it). Modern OpenSSH needs `-o PubkeyAcceptedAlgorithms=+ssh-rsa -o HostKeyAlgorithms=+ssh-rsa` to talk to the C9.
-- **Firewall:** `ufw` on the dev host dropped inbound `:8088`, so the TV couldn't reach the resolver until `ufw allow from 192.168.50.223 … port 8088`.
+- **Dev key:** pulled the per-device key from the TV's key server (`http://<tv-ip>:9991/webos_rsa`, encrypted; the Developer-Mode passphrase decrypts it). Modern OpenSSH needs `-o PubkeyAcceptedAlgorithms=+ssh-rsa -o HostKeyAlgorithms=+ssh-rsa` to talk to the C9.
+- **Firewall:** `ufw` on the dev host dropped inbound `:8088`, so the TV couldn't reach the resolver until `ufw allow from <tv-ip> … port 8088`.
 - **`ares-install` failure:** `/media/developer` is `root:root` 755, so the `prisoner` user can't recreate the `/media/developer/temp` dir `ares-install` insists on. Workaround: stream the ipk via `cat >` into the world-writable `temp`, then install with `luna-send-pub luna://com.webos.appInstallService/dev/install` (`luna-send` is root-only; `luna-send-pub` is world-executable).
 - **CDP inspection:** SSH `-L 9998:127.0.0.1:9998`, then Node 22's global `WebSocket`. Note: this old CDP build ignores `Runtime.evaluate`'s `awaitPromise`, so async probes had to write to a global and be read back synchronously.
 

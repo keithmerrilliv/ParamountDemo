@@ -1,6 +1,10 @@
-// Policy constants and predicate vocabulary helpers.
+// Policy vocabulary: predicate constructors, the policy-catalog types, and the
+// robustness-ladder helper. This is the single home for the predicate/spec
+// vocabulary — server/catalog.ts (the policy data) and server/resolver.ts (the
+// evaluation logic) build on it instead of re-declaring it.
 
-import type { Predicate, RobustnessLevel } from './handshake';
+import type { Predicate, RobustnessLevel, TierName } from './handshake';
+import { ROBUSTNESS_LADDER } from './handshake';
 
 export function isRobustnessAtLeast(actual: RobustnessLevel, required: RobustnessLevel): boolean {
   const actualIdx = ROBUSTNESS_LADDER.indexOf(actual);
@@ -8,37 +12,32 @@ export function isRobustnessAtLeast(actual: RobustnessLevel, required: Robustnes
   return actualIdx >= requiredIdx && requiredIdx !== -1;
 }
 
-// Helper to create codec predicates
+// --- Predicate constructors -------------------------------------------------
+
 export function makeCodecPredicate(id: string, mimeType: string, requiredSmooth?: boolean): Predicate {
   return { kind: 'codec', id, mimeType, requiredSmooth };
 }
 
-// Helper to create WebGL predicates
 export function makeWebGlPredicate(id: string, minVersion: 1 | 2): Predicate {
   return { kind: 'webgl', id, minVersion };
 }
 
-// Helper to create GL extension predicates
 export function makeGlExtensionPredicate(id: string, extension: string): Predicate {
   return { kind: 'gl-extension', id, extension };
 }
 
-// Helper to create DRM predicates
 export function makeDrmPredicate(id: string, system: string, minRobustness?: RobustnessLevel): Predicate {
   return { kind: 'drm', id, system, minRobustness };
 }
 
-// Helper to create HDR predicates
 export function makeHdrPredicate(id: string, transferFunctions: ('hlg' | 'pq')[]): Predicate {
   return { kind: 'hdr', id, transferFunctions };
 }
 
-// Helper to create runtime predicates
 export function makeRuntimePredicate(id: string, check: string): Predicate {
   return { kind: 'runtime', id, check };
 }
 
-// Composite predicate helpers
 export function andPredicate(id: string, requires: Predicate[]): Predicate {
   return { kind: 'and', id, requires };
 }
@@ -47,10 +46,28 @@ export function orPredicate(id: string, alternatives: Predicate[]): Predicate {
   return { kind: 'or', id, alternatives };
 }
 
-export const ROBUSTNESS_LADDER = [
-  'SW_SECURE_CRYPTO',
-  'SW_SECURE_DECODE',
-  'HW_SECURE_CRYPTO',
-  'HW_SECURE_DECODE',
-  'HW_SECURE_ALL'
-] as const;
+// --- Policy-catalog types ---------------------------------------------------
+// Server-internal shapes for the feature catalog. The client never sees these;
+// it only ever receives the resolved Verdict (see shared/handshake.ts).
+
+export interface RungSpec {
+  id: string;
+  when: Predicate;
+  params?: unknown;
+}
+
+export interface FeatureSpec {
+  id: string;
+  requires: Predicate[];
+  rungs: RungSpec[];
+  policy?: {
+    requiresEntitlement?: string;
+    denyFirmware?: string[];
+    rolloutPercent?: number;
+  };
+}
+
+export interface TierBand {
+  tier: TierName;
+  requiredFeatures: string[];
+}
