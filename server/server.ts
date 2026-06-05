@@ -3,7 +3,7 @@
 
 import http from 'http';
 import type { Platform, CapabilityProfile } from '../shared/handshake';
-import { resolve, makeFallbackVerdict, type ResolveContext } from './resolver';
+import { resolve, makeFallbackVerdict, sanitizeProfile, type ResolveContext } from './resolver';
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 8088;
 const HOST = '0.0.0.0';
@@ -54,7 +54,17 @@ function handleResolve(req: http.IncomingMessage, res: http.ServerResponse): voi
     // verdict (HTTP 200) so the shell always receives something it can boot on,
     // rather than a 5xx that would leave the TV with no verdict at all.
     try {
-      const verdict = resolve(payload.profile as CapabilityProfile, payload.context);
+      const profile = payload.profile as CapabilityProfile;
+      // Tripwire: a probe that contradicts the device's known engine (e.g. a
+      // polyfill making a Chromium-53 webOS build claim ES2020) is logged here
+      // so the fleet-wide regression is visible centrally — the one diagnostic
+      // a fat, server-less client could never give you. resolve() also applies
+      // the same guard internally, so the verdict is safe regardless.
+      const anomalies = sanitizeProfile(profile).anomalies;
+      if (anomalies.length > 0) {
+        console.warn('Implausible capability profile (probe likely mismeasured the device):', JSON.stringify({ platform: profile.platform, anomalies }));
+      }
+      const verdict = resolve(profile, payload.context);
       sendJson(res, 200, verdict);
     } catch (e) {
       console.error('Resolver error, falling back to baseline:', e);

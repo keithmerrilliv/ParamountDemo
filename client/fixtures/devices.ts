@@ -1,23 +1,28 @@
-// Bench fixtures for capability profiles.
-// lgC9 fixture documented to yield tier "standard" with multi-angle denied by runtime.es2020.
+// Bench fixtures for capability profiles. These are illustrative inputs for the
+// resolver, NOT a substitute for on-device validation: capability detection is
+// client-side, so only real hardware can prove the probes measure correctly.
+// The lgC9 fixture below is seeded from the captured field profile in
+// docs/REAL_DEVICE_REPORT.md — the original hand-written values disagreed with
+// the real device until three probes were fixed.
 
 import type { CapabilityProfile, Platform } from '../../shared/handshake';
 
 const webosPlatform: Platform = { kind: 'webos', webosVersion: '4.5' };
 
 /**
- * LG C9 — Chromium-53-class engine, excellent decode/HDR/HW-Widevine hardware but antique JS engine
- * 
- * This profile represents a real C9 device:
- * - Excellent decode/HDR/Widevine hardware support
- * - WebGL1 only (no WebGL2)
+ * LG C9 — Chromium-53-class engine, excellent decode/HDR/HW-Widevine hardware
+ * but an antique JS engine. Values match the verified on-device /resolve capture
+ * in docs/REAL_DEVICE_REPORT.md (after the probe fixes):
+ * - Smooth HEVC + H.264 decode on dedicated TV silicon
  * - Widevine HW_SECURE_DECODE
- * - HDR PQ and HLG formats supported  
- * - NO ES2020 runtime features (Chromium-53 is old JS engine)
- * 
+ * - HDR PQ and HLG supported (HDR OLED)
+ * - WebGL1 only (no WebGL2); maxTextureSize 8192
+ * - NO ES2020 runtime features (Chromium-53 genuinely lacks them)
+ *
  * Expected resolution:
  * - tier: standard
- * - multi-angle: DENIED by predicate "runtime.es2020" (false positive due to antique JS engine)
+ * - multi-angle: correctly DENIED by predicate "runtime.es2020" — the engine
+ *   really lacks ES2020 (a true negative, not a probe artefact)
  * - hdr-overlay: ENABLED (WebGL1 + HDR both present)
  */
 export const lgC9: CapabilityProfile = {
@@ -42,14 +47,14 @@ export const lgC9: CapabilityProfile = {
   ],
   graphics: {
     webglVersion: 1,
-    maxTextureSize: 4096,
+    maxTextureSize: 8192,
     extensions: ['WEBGL_compressed_texture_s3tc', 'WEBGL_debug_renderer_info']
   },
   runtime: {
-    es2020: false // C9 fails this — the axis that denies multi-angle
+    es2020: false // Chromium-53 genuinely lacks ES2020 — the axis that denies multi-angle
   },
   display: {
-    hdr: ['pq', 'hlg'] // HDR support confirmed
+    hdr: ['pq', 'hlg'] // HDR support confirmed on-device
   }
 };
 
