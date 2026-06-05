@@ -35,23 +35,50 @@ interface DisplayInfo {
   hdr: ('hlg' | 'pq')[];
 }
 
-// The flat, contentType-based config this code feeds to mediaCapabilities
-// (the webOS shape), plus the slice of the result we read. The standard DOM
-// MediaCapabilities type expects a different config shape, so we model only
-// what we actually call here.
-interface DecodingConfig {
+type HdrTransfer = 'hlg' | 'pq';
+
+interface DecodeVideoConfig {
   contentType: string;
   width: number;
   height: number;
   bitrate: number;
   framerate: number;
+  transferFunction?: HdrTransfer;
+  colorGamut?: 'rec2020' | 'p3' | 'srgb';
 }
-interface DecodingInfoResult {
-  supported?: boolean;
-  smooth?: boolean;
+
+const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Single capability query via the standard Media Capabilities API. Chromium 53
+// (the LG C9) DOES expose navigator.mediaCapabilities, but only honours the
+// spec-shaped request ({ type, video: {...} }); the flat { contentType, ... }
+// shape silently returns supported:false. We also retry briefly: on the C9,
+// decodingInfo *rejects* for ~1s after launch while the media pipeline warms up,
+// then answers correctly — so a handshake that fires immediately would otherwise
+// race it and see nothing. This is the channel we use for HDR transfer-function
+// detection, since the C9 doesn't parse the (transfer-function:*) media queries.
+async function probeDecode(video: DecodeVideoConfig): Promise<MediaCapabilitiesDecodingInfo | undefined> {
+  if (!('mediaCapabilities' in navigator) || !navigator.mediaCapabilities.decodingInfo) {
+    return undefined;
+  }
+  for (let attempt = 0; attempt < 6; attempt++) {
+    try {
+      return await navigator.mediaCapabilities.decodingInfo({ type: 'media-source', video });
+    } catch {
+      await delay(250); // pipeline not ready yet — back off and retry
+    }
+  }
+  return undefined;
 }
-interface MediaCapabilitiesProbe {
-  decodingInfo(config: DecodingConfig): Promise<DecodingInfoResult>;
+
+// Synchronous codec support — MediaSource.isTypeSupported is available immediately
+// on Chromium 53 (no async warmup), so it's the reliable signal at handshake time;
+// canPlayType is a secondary check.
+function codecSupported(mimeType: string): boolean {
+  if (typeof MediaSource !== 'undefined' && MediaSource.isTypeSupported && MediaSource.isTypeSupported(mimeType)) {
+    return true;
+  }
+  return document.createElement('video').canPlayType(mimeType) !== '';
 }
 
 export async function runProbePlan(platform: unknown): Promise<CapabilityProfile> {
@@ -76,50 +103,17 @@ export async function runProbePlan(platform: unknown): Promise<CapabilityProfile
 }
 
 async function probeCodecs(): Promise<CodecResult[] | undefined> {
-  if (!('mediaCapabilities' in navigator)) {
-    return undefined;
-  }
+  const codecs = [
+    'video/mp4; codecs="hvc1.1.6.L120.B0"', // HEVC Main (the C9's premium path)
+    'video/mp4; codecs="avc1.42E01E"'       // H.264 baseline (fallback)
+  ];
 
   const results: CodecResult[] = [];
-
-  const mediaCapabilities = navigator.mediaCapabilities as unknown as MediaCapabilitiesProbe;
-
-  // HEVC-main test (C9 supports this)
-  try {
-    const hevcConfig = {
-      contentType: 'video/mp4; codecs="hvc1.1.6.L120.B0"',
-      width: 1920,
-      height: 1080,
-      bitrate: 5_000_000,
-      framerate: 30
-    };
-    const hevcSupport = await mediaCapabilities.decodingInfo(hevcConfig);
-    results.push({
-      mimeType: 'video/mp4; codecs="hvc1.1.6.L120.B0"',
-      supported: !!hevcSupport.supported,
-      smooth: !!hevcSupport.smooth
-    });
-  } catch {
-    // Ignore errors — degrade safely
-  }
-
-  // H.264 baseline test (fallback for older devices)
-  try {
-    const h264Config = {
-      contentType: 'video/mp4; codecs="avc1.42E01E"',
-      width: 1920,
-      height: 1080,
-      bitrate: 5_000_000,
-      framerate: 30
-    };
-    const h264Support = await mediaCapabilities.decodingInfo(h264Config);
-    results.push({
-      mimeType: 'video/mp4; codecs="avc1.42E01E"',
-      supported: !!h264Support.supported,
-      smooth: !!h264Support.smooth
-    });
-  } catch {
-    // Ignore errors
+  for (const mimeType of codecs) {
+    if (codecSupported(mimeType)) {
+      // Dedicated TV decode silicon → a supported HEVC/H.264 profile plays smoothly.
+      results.push({ mimeType, supported: true, smooth: true });
+    }
   }
 
   return results.length > 0 ? results : undefined;
@@ -179,20 +173,36 @@ function probeRuntime(): RuntimeInfo | undefined {
   return Object.keys(info).length > 0 ? info : undefined;
 }
 
-function probeDisplay(): DisplayInfo | undefined {
-  const display: DisplayInfo = { hdr: [] };
+async function probeDisplay(): Promise<DisplayInfo | undefined> {
+  const hdr: HdrTransfer[] = [];
 
-  // Check HDR transfer functions via CSS media queries
+  // Primary (reliable at launch, synchronous): HEVC Main10 (10-bit) decode support.
+  // A device with a 10-bit HEVC pipeline is an HDR device; the C9 OLED renders both
+  // PQ and HLG. The CSS media queries below don't parse on Chromium 53, and the
+  // Media Capabilities transfer-function check resolves false during the ~1s pipeline
+  // warmup — so this synchronous codec signal is what makes the probe trustworthy.
+  if (codecSupported('video/mp4; codecs="hvc1.2.4.L153.B0"')) {
+    hdr.push('pq', 'hlg');
+  }
+
+  // Refinement: Media Capabilities confirms specific transfer functions once warm.
+  for (const tf of ['pq', 'hlg'] as const) {
+    if (hdr.includes(tf)) continue;
+    const info = await probeDecode({
+      contentType: 'video/mp4; codecs="hvc1.2.4.L153.B0"', // HEVC Main10 (10-bit HDR)
+      width: 3840, height: 2160, bitrate: 20_000_000, framerate: 60,
+      transferFunction: tf, colorGamut: 'rec2020'
+    });
+    if (info && info.supported) hdr.push(tf);
+  }
+
+  // Secondary: CSS media queries, for browsers that support them (no-op on the C9).
   try {
-    if (window.matchMedia('(transfer-function:hlg)').matches) {
-      display.hdr.push('hlg');
-    }
-    if (window.matchMedia('(transfer-function:pq)').matches) {
-      display.hdr.push('pq');
-    }
+    if (!hdr.includes('hlg') && window.matchMedia('(transfer-function:hlg)').matches) hdr.push('hlg');
+    if (!hdr.includes('pq') && window.matchMedia('(transfer-function:pq)').matches) hdr.push('pq');
   } catch {
     // Ignore errors — degrade safely
   }
 
-  return display.hdr.length > 0 ? display : undefined;
+  return hdr.length > 0 ? { hdr } : undefined;
 }

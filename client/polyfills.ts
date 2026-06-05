@@ -4,7 +4,10 @@
 import 'core-js/es/array/includes';
 import 'core-js/es/array/find';
 import 'core-js/es/object/assign';
-import 'core-js/es/promise';
+// NOTE: Promise is deliberately NOT polyfilled. Chromium 53 ships a spec-complete
+// ES2015 Promise, and `core-js/es/promise` would add Promise.allSettled — the exact
+// feature the runtime.es2020 probe inspects — which would make the C9 falsely report
+// es2020=true and mis-tier the device. A polyfill must never mask what a probe measures.
 import 'core-js/es/string/includes';
 import 'core-js/es/string/starts-with';
 import 'core-js/es/map';
