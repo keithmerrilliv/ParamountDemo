@@ -28,20 +28,23 @@ class AppUI {
     if (!el) throw new Error(`Container ${containerId} not found`);
     this.container = el;
 
-    // Create safe-area wrapper (90% viewport)
+    // Compact HUD pinned to the top-left safe area — it sits over the video as a
+    // status panel rather than covering it. Width/height hug the content so the
+    // Sintel playback stays visible behind and beside it.
     const wrapper = document.createElement('div');
     wrapper.id = 'paramount-ui-wrapper';
     wrapper.style.cssText = `
       position: fixed;
       top: 5%;
       left: 5%;
-      width: 90%;
-      height: 90%;
+      width: auto;
+      max-width: 34%;
+      max-height: 90%;
       display: flex;
       flex-direction: column;
       font-family: sans-serif;
       color: white;
-      background-color: rgba(0, 0, 0, 0.8);
+      background-color: rgba(0, 0, 0, 0.55);
       border-radius: 12px;
       overflow: hidden;
       z-index: 9999;
@@ -63,10 +66,8 @@ class AppUI {
     const featureList = document.createElement('div');
     featureList.id = 'feature-list';
     featureList.style.cssText = `
-      flex: 1;
       overflow-y: auto;
-      padding: 16px 24px;
-      margin-bottom: 16px;
+      padding: 12px 20px;
     `;
     wrapper.appendChild(featureList);
 
@@ -91,17 +92,17 @@ class AppUI {
     telemetryPanel.appendChild(telemetryContent);
     wrapper.appendChild(telemetryPanel);
 
-    // Error card (full-screen overlay)
+    // Error card (full-screen overlay) — hidden until an error actually occurs.
     const errorCard = document.createElement('div');
     errorCard.id = 'error-card';
     errorCard.style.cssText = `
-      position: absolute;
+      position: fixed;
       top: 0;
       left: 0;
       right: 0;
       bottom: 0;
       background-color: rgba(0, 0, 0, 0.9);
-      display: flex;
+      display: none;
       align-items: center;
       justify-content: center;
       z-index: 10000;
