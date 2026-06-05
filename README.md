@@ -108,3 +108,16 @@ Use D-pad keys:
 - [x] Shaka config wires `'com.widevine.alpha'` to the license server
 - [x] LG C9 fixture yields tier `"standard"` with `multi-angle` denied by `runtime.es2020`
 - [x] Client bundle is Chromium-53-safe (no `?.` or `??`)
+
+## Real-device validation
+
+These criteria were also verified on a physical **LG OLED65C9** (webOS 5.50, Chromium 53),
+not just against the fixtures. The first on-device run actually resolved to `baseline`:
+three client capability probes mismeasured the real engine — the `runtime.es2020` probe was
+masked by a polyfill, the codec probe used a config shape Chromium 53 rejects, and the HDR
+probe relied on CSS media queries it doesn't parse. After fixing them, the real C9 resolves
+to `standard` with `multi-angle` denied by `runtime.es2020`, hdr-overlay enabled, and
+Widevine playback confirmed.
+
+See **[docs/REAL_DEVICE_REPORT.md](docs/REAL_DEVICE_REPORT.md)** for the full write-up —
+findings, fixes, the captured client↔server handshake, and DRM telemetry.
