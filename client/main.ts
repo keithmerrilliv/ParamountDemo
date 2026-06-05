@@ -54,6 +54,20 @@ async function main(): Promise<void> {
     // Load manifest
     await shakaPlayer.loadManifest();
 
+    // Autoplay — webOS TV apps may start playback without a user gesture. If a
+    // policy blocks audible autoplay, retry muted so the demo still plays; the
+    // user can press Enter to unpause/unmute either way.
+    try {
+      await videoEl.play();
+    } catch {
+      videoEl.muted = true;
+      try {
+        await videoEl.play();
+      } catch {
+        // Leave paused — D-pad Enter starts playback.
+      }
+    }
+
     // Set up D-pad key handling
     ui.addKeyHandler((keyCode) => {
       switch (keyCode) {
