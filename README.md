@@ -14,7 +14,7 @@ The shell **measures** (client-side capability probes in `client/probe.ts`) and 
 
 - **Policy velocity** — feature gates, rollout %, firmware denylists and tier bands live in `server/catalog.ts` (the single source of truth); changing them needs no new client build or store re-certification.
 - **Entitlement authority** — `multi-angle` is gated on the `live-premium` entitlement, an account fact the client cannot be trusted to self-assert. Capability is not entitlement.
-- **Fleet observability** — every device's real profile and verdict cross a wire, so a mismeasuring probe is visible centrally (see [Real-device validation](#real-device-validation-lg-c9)).
+- **Fleet observability** — every device's real profile and verdict cross a wire, so a mismeasuring probe is visible centrally — see the Real-device validation section below.
 
 A fat client with every feature prebaked and gated purely on client probes cannot express the entitlement/rollout gates, and gives no central view when a probe lies — which, on real hardware, is exactly what happened.
 
@@ -116,7 +116,7 @@ Use D-pad keys:
 - [x] Strict TypeScript enabled, zero `any` tokens in source
 - [x] Widevine manifest URL and license server URL appear verbatim
 - [x] Shaka config wires `'com.widevine.alpha'` to the license server
-- [x] LG C9 **fixture** resolves to tier `"standard"` with `multi-angle` denied by `runtime.es2020` (illustrative bench input — the **real device** is validated separately, see [Real-device validation](#real-device-validation-lg-c9))
+- [x] LG C9 **fixture** resolves to tier `"standard"` with `multi-angle` denied by `runtime.es2020` (illustrative bench input — the **real device** is validated separately in the Real-device validation section below)
 - [x] Client bundle is Chromium-53-safe (no `?.` or `??`)
 
 ## Real-device validation (LG C9)
